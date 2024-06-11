@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Catálogo de Anillos</title>
+    <style>
+        .catalogo {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .anillo {
+            border: 1px solid #ccc;
+            padding: 16px;
+            margin: 16px;
+            text-align: center;
+        }
+
+        .anillo img {
+            max-width: 100px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Catálogo de Anillos</h1>
+    <div id="catalogo" class="catalogo"></div>
+    <pre id="content" style="white-space: pre-wrap;"></pre>
+
+    <script type="text/javascript">
+        const API_KEY = 'AIzaSyAOCZu72E98chec6oI4VIp4o6Ofpf6I3Uo';
+        const PARENT_FOLDER_ID = '1gu0RpNdTZ9FFDQEJ9Gl_BoVxa1xoDaTs'; // ID de la carpeta 'catalogo Hadar Joyeria'
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await listFiles();
+        });
+
+        async function listFiles() {
+            let response;
+            try {
+                response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${PARENT_FOLDER_ID}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+name='anillos'&key=${API_KEY}`);
+                response = await response.json();
+            } catch (err) {
+                document.getElementById('content').innerText = err.message;
+                return;
+            }
+
+            const folders = response.files;
+            if (!folders || folders.length === 0) {
+                document.getElementById('content').innerText = 'No folders found.';
+                return;
+            }
+
+            const anillosFolderId = folders[0].id;
+            listAnillos(anillosFolderId);
+        }
+
+        async function listAnillos(folderId) {
+            let response;
+            try {
+                response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&pageSize=100&fields=files(id,name,mimeType,webViewLink,thumbnailLink)&key=${API_KEY}`);
+                response = await response.json();
+            } catch (err) {
+                document.getElementById('content').innerText = err.message;
+                return;
+            }
+
+            const files = response.files;
+            if (!files || files.length === 0) {
+                document.getElementById('content').innerText = 'No files found.';
+                return;
+            }
+
+            const catalogo = document.getElementById('catalogo');
+            catalogo.innerHTML = ''; // Clear any existing content
+            files.forEach(file => {
+                const fileId = file.id;
+                const fileName = file.name;
+                const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+                const anilloDiv = document.createElement('div');
+                anilloDiv.className = 'anillo';
+                anilloDiv.innerHTML = `
+                    <h2>${fileName}</h2>
+                    <img src="${fileUrl}" alt="${fileName}" onerror="this.onerror=null;this.src='${file.thumbnailLink}';">
+                `;
+                catalogo.appendChild(anilloDiv);
+            });
+        }
+    </script>
+</body>
+
+</html>

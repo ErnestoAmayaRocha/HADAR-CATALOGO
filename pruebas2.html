@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Catálogo de Joyería</title>
+    <style>
+        /* Estilos para el catálogo */
+        .catalogo {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .catalogo .card {
+            border: 1px solid #ccc;
+            padding: 16px;
+            margin: 16px;
+            text-align: center;
+        }
+
+        .catalogo .card img {
+            max-width: 100px;
+        }
+
+        /* Estilos para la paginación */
+        .pagination-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .paginationjs-pages {
+            display: flex;
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .paginationjs-page {
+            margin: 0 5px;
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+        }
+
+        .paginationjs-page.active {
+            font-weight: bold;
+            color: #000;
+        }
+
+        .paginationjs-prev,
+        .paginationjs-next {
+            margin: 0 5px;
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Catálogo de Joyería</h1>
+        <div id="catalogo" class="catalogo"></div>
+        <div id="pagination" class="pagination-container"></div>
+    </div>
+
+    <!-- Incluir la biblioteca paginationjs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paginationjs/2.1.5/pagination.min.js"></script>
+
+    <script type="text/javascript">
+        const API_KEY = 'AIzaSyAOCZu72E98chec6oI4VIp4o6Ofpf6I3Uo';
+        const PARENT_FOLDER_ID = '1gu0RpNdTZ9FFDQEJ9Gl_BoVxa1xoDaTs'; // ID de la carpeta 'catalogo Hadar Joyeria'
+        const PAGE_SIZE = 6; // Tamaño de la página
+        let allFiles = [];
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await listFiles();
+        });
+
+        async function listFiles() {
+            const folderNames = ['Anillos', 'Collares', 'Pulseras', 'Aretes - ear cuffs', 'Piercings'];
+
+            for (const folderName of folderNames) {
+                let response;
+                try {
+                    response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${PARENT_FOLDER_ID}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+name='${folderName}'&key=${API_KEY}`);
+                    response = await response.json();
+                } catch (err) {
+                    console.error(`Error al obtener archivos de la carpeta ${folderName}:`, err);
+                    continue;
+                }
+
+                const folders = response.files;
+                if (!folders || folders.length === 0) {
+                    console.warn(`No se encontraron carpetas con el nombre '${folderName}'.`);
+                    continue;
+                }
+
+                const folderId = folders[0].id;
+                try {
+                    response = await fetch(`https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&pageSize=100&fields=files(id,name,mimeType,webViewLink,thumbnailLink)&key=${API_KEY}`);
+                    response = await response.json();
+                } catch (err) {
+                    console.error(`Error al obtener archivos de la carpeta con ID ${folderId}:`, err);
+                    continue;
+                }
+
+                const files = response.files;
+                if (!files || files.length === 0) {
+                    console.warn(`No se encontraron archivos en la carpeta con ID ${folderId}.`);
+                    continue;
+                }
+
+                allFiles = allFiles.concat(files);
+            }
+
+            console.log('Archivos obtenidos:', allFiles);
+
+            // Inicializar la paginación
+            $('#pagination').pagination({
+                dataSource: allFiles,
+                pageSize: PAGE_SIZE,
+                callback: function (data, pagination) {
+                    const catalogo = document.getElementById('catalogo');
+                    catalogo.innerHTML = '';
+
+                    data.forEach(file => {
+                        const fileId = file.id;
+                        const fileName = file.name;
+                        const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+                        // Separar nombre y precio
+                        const [nombre, precioRaw] = fileName.split(" - ");
+                        const precio = parseFloat(precioRaw.replace(/[^\d.]/g, ''));
+
+                        const cardDiv = document.createElement('div');
+                        cardDiv.className = 'card';
+                        cardDiv.innerHTML = `
+                            <a href="#">
+                                <img class="hover:grow hover:shadow-lg" src="${file.thumbnailLink}" alt="${nombre}">
+                                <div class="pt-3 flex items-center justify-between">
+                                    <p>Nombre del artículo: ${nombre}</p>
+                                </div>
+                                <p class="pt-1 text-gray-900">Precio: $${precio}</p>
+                            </a>
+                        `;
+                        catalogo.appendChild(cardDiv);
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
